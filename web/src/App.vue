@@ -39,29 +39,31 @@
       <main class="main">
         <h1>AI Companion Agent</h1>
 
-        <div class="chat-box">
-          <div
+       <div ref="chatBoxRef" class="chat-box">
+        <div
             v-for="(item, index) in currentMessages"
             :key="index"
             :class="['msg', item.role]"
-          >
+        >
             <div class="role">
-              {{
+            {{
                 item.role === 'user'
-                  ? '我'
-                  : item.role === 'assistant'
-                  ? 'AI'
-                  : 'system'
-              }}
+                ? '我'
+                : item.role === 'assistant'
+                ? 'AI'
+                : 'system'
+            }}
             </div>
-            <div class="content">{{ item.content }}</div>
-          </div>
 
-          <div v-if="loading" class="msg assistant">
+            <div v-if="item.role === 'assistant'" class="content markdown-body" v-html="renderMarkdown(item.content)" />
+            <div v-else class="content">{{ item.content }}</div>
+        </div>
+
+        <div v-if="loading" class="msg assistant">
             <div class="role">AI</div>
             <div class="content">思考中...</div>
-          </div>
         </div>
+    </div>
 
         <div class="input-area">
           <textarea
@@ -98,11 +100,14 @@
 <script setup>
 import axios from 'axios'
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { createSession, loadSessions, saveSessions } from './utils/session'
 
 const inputValue = ref('')
 const loading = ref(false)
 const abortController = ref(null)
+const chatBoxRef = ref(null)
 
 const sessions = ref(loadSessions())
 const currentSessionId = ref(sessions.value[0]?.id || '')
@@ -211,6 +216,18 @@ const fetchMemories = async () => {
   } catch (error) {
     memoryList.value = []
     console.error(error)
+  }
+}
+
+const renderMarkdown = content => {
+  const rawHtml = marked.parse(content || '')
+  return DOMPurify.sanitize(rawHtml)
+}
+
+const scrollToBottom = async () => {
+  await nextTick()
+  if (chatBoxRef.value) {
+    chatBoxRef.value.scrollTop = chatBoxRef.value.scrollHeight
   }
 }
 
@@ -367,8 +384,23 @@ watch(currentSessionId, () => {
   fetchMemories()
 })
 
+watch(
+  () => currentMessages.value.length,
+  () => {
+    scrollToBottom()
+  }
+)
+
+watch(
+  () => currentMessages.value[currentMessages.value.length - 1]?.content,
+  () => {
+    scrollToBottom()
+  }
+)
+
 onMounted(() => {
   fetchMemories()
+  scrollToBottom()
 })
 </script>
 
@@ -582,5 +614,64 @@ button:disabled {
 .stop-btn {
   width: 100px;
   background: #ef4444;
+}
+
+.markdown-body :deep(p) {
+  margin: 0 0 8px;
+}
+
+.markdown-body :deep(pre) {
+  background: #111827;
+  color: #f9fafb;
+  padding: 12px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-body :deep(code) {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.markdown-body :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4) {
+  margin: 10px 0 8px;
+  font-size: 16px;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 4px solid #d1d5db;
+  color: #4b5563;
+}
+
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  text-align: left;
 }
 </style>
