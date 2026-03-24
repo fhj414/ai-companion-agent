@@ -579,4 +579,8 @@ button:disabled {
   outline: none;
   box-sizing: border-box;
 }
+.stop-btn {
+  width: 100px;
+  background: #ef4444;
+}
 </style>
