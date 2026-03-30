@@ -59,6 +59,57 @@
       </div>
     </div>
 
+    <div class="params-panel">
+      <div class="params-panel-header">
+        <div class="params-panel-title">聊天参数</div>
+        <button class="prompt-btn" @click="emit('save-params')">保存参数</button>
+      </div>
+
+      <div class="params-grid">
+        <div class="param-item">
+          <label class="param-label">temperature</label>
+          <input
+            :value="temperatureDraft"
+            class="param-input"
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            @input="emit('update:temperatureDraft', $event.target.value)"
+          />
+          <div class="param-tip">越高越发散，越低越稳定</div>
+        </div>
+
+        <div class="param-item">
+          <label class="param-label">top_p</label>
+          <input
+            :value="topPDraft"
+            class="param-input"
+            type="number"
+            min="0"
+            max="1"
+            step="0.1"
+            @input="emit('update:topPDraft', $event.target.value)"
+          />
+          <div class="param-tip">控制采样范围</div>
+        </div>
+
+        <div class="param-item">
+          <label class="param-label">max_tokens</label>
+          <input
+            :value="maxTokensDraft"
+            class="param-input"
+            type="number"
+            min="100"
+            max="4000"
+            step="100"
+            @input="emit('update:maxTokensDraft', $event.target.value)"
+          />
+          <div class="param-tip">限制单次最大输出长度</div>
+        </div>
+      </div>
+    </div>
+
     <MessageList
       :current-messages="currentMessages"
       :loading="loading"
@@ -98,6 +149,18 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  temperatureDraft: {
+    type: [Number, String],
+    required: true,
+  },
+  topPDraft: {
+    type: [Number, String],
+    required: true,
+  },
+  maxTokensDraft: {
+    type: [Number, String],
+    required: true,
+  },
   onCopyMessage: {
     type: Function,
     required: true,
@@ -121,6 +184,10 @@ const emit = defineEmits([
   'save-prompt',
   'reset-prompt',
   'use-prompt-template',
+  'update:temperatureDraft',
+  'update:topPDraft',
+  'update:maxTokensDraft',
+  'save-params',
 ])
 </script>
 
@@ -230,5 +297,65 @@ const emit = defineEmits([
 
 .prompt-template-tag:hover {
   background: #e0e7ff;
+}
+
+.params-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.params-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.params-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.param-item {
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.param-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.param-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.param-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6b7280;
 }
 </style>

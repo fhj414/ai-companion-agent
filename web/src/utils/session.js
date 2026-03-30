@@ -10,6 +10,9 @@ export function createSession(title = '新对话', mode = 'companion') {
     title,
     mode,
     customPrompt: persona.systemPrompt,
+    temperature: 0.7,
+    topP: 1,
+    maxTokens: 1200,
     pinned: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -51,6 +54,9 @@ export function loadSessions() {
           item.customPrompt ||
           item.messages?.find(m => m.role === 'system')?.content ||
           persona.systemPrompt,
+        temperature: 0.7,
+        topP: 1,
+        maxTokens: 1200,
         pinned: false,
         ...item,
       }

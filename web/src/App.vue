@@ -28,17 +28,24 @@
         :loading="loading"
         :input-value="inputValue"
         :prompt-draft="promptDraft"
+        :temperature-draft="temperatureDraft"
+        :top-p-draft="topPDraft"
+        :max-tokens-draft="maxTokensDraft"
         :on-copy-message="copyMessage"
         :on-delete-message="handleDeleteMessage"
         :on-regenerate="handleRegenerate"
         @update:input-value="inputValue = $event"
         @update:prompt-draft="promptDraft = $event"
+        @update:temperature-draft="temperatureDraft = $event"
+        @update:top-p-draft="topPDraft = $event"
+        @update:max-tokens-draft="maxTokensDraft = $event"
         @send="sendMessage"
         @abort="abortController?.abort()"
         @export="exportCurrentSession"
         @save-prompt="handleSavePrompt"
         @reset-prompt="handleResetPrompt"
         @use-prompt-template="handleUsePromptTemplate"
+        @save-params="handleSaveParams"
       />
 
       <MemoryPanel :memory-list="memoryList" />
@@ -67,6 +74,9 @@ const editingTitle = ref('')
 const sessionKeyword = ref('')
 const createMode = ref('companion')
 const promptDraft = ref('')
+const temperatureDraft = ref(0.7)
+const topPDraft = ref(1)
+const maxTokensDraft = ref(1200)
 
 const currentSession = computed(() => {
   return sessions.value.find(item => item.id === currentSessionId.value) || sessions.value[0]
@@ -76,6 +86,14 @@ const currentMessages = computed(() => currentSession.value?.messages || [])
 
 const currentSystemPrompt = computed(() => {
   return currentSession.value?.customPrompt || ''
+})
+
+const currentParams = computed(() => {
+  return {
+    temperature: currentSession.value?.temperature ?? 0.7,
+    topP: currentSession.value?.topP ?? 1,
+    maxTokens: currentSession.value?.maxTokens ?? 1200,
+  }
 })
 
 const filteredSessions = computed(() => {
@@ -205,6 +223,28 @@ const handleResetPrompt = () => {
 
 const handleUsePromptTemplate = template => {
   promptDraft.value = template
+}
+
+const handleSaveParams = () => {
+  if (!currentSession.value) return
+
+  const nextTemperature = Math.min(2, Math.max(0, Number(temperatureDraft.value) || 0.7))
+  const nextTopP = Math.min(1, Math.max(0, Number(topPDraft.value) || 1))
+  const nextMaxTokens = Math.min(4000, Math.max(100, Number(maxTokensDraft.value) || 1200))
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === currentSessionId.value
+        ? {
+            ...item,
+            temperature: nextTemperature,
+            topP: nextTopP,
+            maxTokens: nextMaxTokens,
+            updatedAt: Date.now(),
+          }
+        : item
+    )
+  )
 }
 
 const copyMessage = async content => {
@@ -487,14 +527,23 @@ const sendMessage = async () => {
 const sendMessageStream = async messages => {
   abortController.value = new AbortController()
 
+  const cleanedMessages = (messages || []).filter(item => {
+    if (!item) return false
+    if (item.role !== 'assistant') return true
+    return Boolean((item.content || '').trim())
+  })
+
   const res = await fetch('http://127.0.0.1:8080/api/chat/stream', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      messages,
+      messages: cleanedMessages,
       session_id: currentSession.value.id,
+      temperature: currentSession.value.temperature,
+      top_p: currentSession.value.topP,
+      max_tokens: currentSession.value.maxTokens,
     }),
     signal: abortController.value.signal,
   })
@@ -599,6 +648,16 @@ watch(
     promptDraft.value = newVal || ''
   },
   { immediate: true }
+)
+
+watch(
+  currentParams,
+  newVal => {
+    temperatureDraft.value = newVal.temperature
+    topPDraft.value = newVal.topP
+    maxTokensDraft.value = newVal.maxTokens
+  },
+  { immediate: true, deep: true }
 )
 
 onMounted(() => {

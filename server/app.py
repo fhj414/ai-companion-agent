@@ -41,6 +41,9 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[Message]
     session_id: Optional[str] = None
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 1
+    max_tokens: Optional[int] = 1200
 
 
 class ChatResponse(BaseModel):
@@ -138,7 +141,9 @@ def chat(req: ChatRequest):
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=final_messages,
-            temperature=0.7,
+            temperature=req.temperature or 0.7,
+            top_p=req.top_p or 1,
+            max_tokens=req.max_tokens or 1200,
         )
         reply = completion.choices[0].message.content or ""
     except Exception as e:
@@ -176,7 +181,9 @@ def chat_stream(req: ChatRequest):
             stream = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=final_messages,
-                temperature=0.7,
+                temperature=req.temperature or 0.7,
+                top_p=req.top_p or 1,
+                max_tokens=req.max_tokens or 1200,
                 stream=True,
             )
 
