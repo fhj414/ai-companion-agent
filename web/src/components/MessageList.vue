@@ -5,6 +5,7 @@
         <div class="role">{{ getRoleLabel(item.role) }}</div>
 
         <div v-if="item.role !== 'system'" class="msg-actions">
+          <span class="msg-action-btn" @click="onQuoteMessage?.(item, index)">引用</span>
           <span class="msg-action-btn" @click="onCopyMessage?.(item.content)">复制</span>
           <span class="msg-action-btn delete" @click="onDeleteMessage?.(index)">删除</span>
           <span
@@ -50,6 +51,10 @@ const props = defineProps({
     required: true,
   },
   onDeleteMessage: {
+    type: Function,
+    required: true,
+  },
+  onQuoteMessage: {
     type: Function,
     required: true,
   },

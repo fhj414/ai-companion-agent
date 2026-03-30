@@ -31,9 +31,12 @@
         :temperature-draft="temperatureDraft"
         :top-p-draft="topPDraft"
         :max-tokens-draft="maxTokensDraft"
+        :quoted-message="quotedMessage"
         :on-copy-message="copyMessage"
         :on-delete-message="handleDeleteMessage"
+        :on-quote-message="handleQuoteMessage"
         :on-regenerate="handleRegenerate"
+        :on-clear-quoted="clearQuotedMessage"
         @update:input-value="inputValue = $event"
         @update:prompt-draft="promptDraft = $event"
         @update:temperature-draft="temperatureDraft = $event"
@@ -77,6 +80,7 @@ const promptDraft = ref('')
 const temperatureDraft = ref(0.7)
 const topPDraft = ref(1)
 const maxTokensDraft = ref(1200)
+const quotedMessage = ref(null)
 
 const currentSession = computed(() => {
   return sessions.value.find(item => item.id === currentSessionId.value) || sessions.value[0]
@@ -260,6 +264,17 @@ const copyMessage = async content => {
 const handleDeleteMessage = index => {
   if (!currentSession.value) return
 
+  if (quotedMessage.value) {
+    if (quotedMessage.value.index === index) {
+      quotedMessage.value = null
+    } else if (quotedMessage.value.index > index) {
+      quotedMessage.value = {
+        ...quotedMessage.value,
+        index: quotedMessage.value.index - 1,
+      }
+    }
+  }
+
   const nextMessages = currentSession.value.messages.filter((_, i) => i !== index)
 
   sessions.value = sortSessions(
@@ -273,6 +288,18 @@ const handleDeleteMessage = index => {
         : item
     )
   )
+}
+
+const handleQuoteMessage = (item, index) => {
+  quotedMessage.value = {
+    index,
+    role: item.role,
+    content: item.content,
+  }
+}
+
+const clearQuotedMessage = () => {
+  quotedMessage.value = null
 }
 
 const handleRegenerate = async index => {
@@ -480,6 +507,41 @@ const exportCurrentSession = format => {
   }
 }
 
+const buildMessagesForRequest = (messages = []) => {
+  if (!quotedMessage.value) return messages
+
+  const quoteRole =
+    quotedMessage.value.role === 'user'
+      ? '用户'
+      : quotedMessage.value.role === 'assistant'
+      ? 'AI'
+      : quotedMessage.value.role
+
+  const quotePrompt = [
+    '以下是用户本次特别引用的一段历史消息，请你在回答时重点参考：',
+    '',
+    `引用角色：${quoteRole}`,
+    `引用内容：${quotedMessage.value.content}`,
+  ].join('\n')
+
+  const nextMessages = [...messages]
+  const systemIndex = nextMessages.findIndex(item => item.role === 'system')
+
+  if (systemIndex > -1) {
+    nextMessages[systemIndex] = {
+      ...nextMessages[systemIndex],
+      content: `${nextMessages[systemIndex].content}\n\n${quotePrompt}`,
+    }
+  } else {
+    nextMessages.unshift({
+      role: 'system',
+      content: quotePrompt,
+    })
+  }
+
+  return nextMessages
+}
+
 const sendMessage = async () => {
   const text = inputValue.value.trim()
   if (!text || loading.value || !currentSession.value) return
@@ -504,7 +566,9 @@ const sendMessage = async () => {
   loading.value = true
 
   try {
-    await sendMessageStream(currentSession.value.messages)
+    const requestMessages = buildMessagesForRequest(currentSession.value.messages)
+    await sendMessageStream(requestMessages)
+    clearQuotedMessage()
   } catch (error) {
     updateCurrentSession(session => ({
       ...session,

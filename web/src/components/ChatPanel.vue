@@ -115,8 +115,20 @@
       :loading="loading"
       :on-copy-message="onCopyMessage"
       :on-delete-message="onDeleteMessage"
+      :on-quote-message="onQuoteMessage"
       :on-regenerate="onRegenerate"
     />
+
+    <div v-if="quotedMessage" class="quote-bar">
+      <div class="quote-content">
+        <span class="quote-label">
+          正在引用 {{ quotedMessage.role === 'user' ? '用户' : 'AI' }} 消息：
+        </span>
+        <span class="quote-text">{{ quotedMessage.content }}</span>
+      </div>
+      <span class="quote-close" @click="onClearQuoted">取消</span>
+    </div>
+
     <MessageInput
       :loading="loading"
       :input-value="inputValue"
@@ -161,6 +173,10 @@ const props = defineProps({
     type: [Number, String],
     required: true,
   },
+  quotedMessage: {
+    type: Object,
+    default: null,
+  },
   onCopyMessage: {
     type: Function,
     required: true,
@@ -169,7 +185,15 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  onQuoteMessage: {
+    type: Function,
+    required: true,
+  },
   onRegenerate: {
+    type: Function,
+    required: true,
+  },
+  onClearQuoted: {
     type: Function,
     required: true,
   },
@@ -357,5 +381,46 @@ const emit = defineEmits([
   margin-top: 8px;
   font-size: 12px;
   color: #6b7280;
+}
+
+.quote-bar {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quote-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.quote-label {
+  font-size: 12px;
+  color: #1d4ed8;
+  margin-right: 6px;
+}
+
+.quote-text {
+  font-size: 13px;
+  color: #1f2937;
+  word-break: break-word;
+}
+
+.quote-close {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.quote-close:hover {
+  color: #111827;
 }
 </style>
