@@ -1,16 +1,22 @@
+import { PERSONA_MAP } from './persona'
+
 export const STORAGE_KEY = 'ai-companion-sessions'
 
-export function createSession(title = '新对话') {
+export function createSession(title = '新对话', mode = 'companion') {
+  const persona = PERSONA_MAP[mode] || PERSONA_MAP.companion
+
   return {
     id: crypto.randomUUID(),
     title,
+    mode,
+    customPrompt: persona.systemPrompt,
     pinned: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     messages: [
       {
         role: 'system',
-        content: '你是一个温柔、聪明、会长期陪伴用户的AI伙伴。',
+        content: persona.systemPrompt,
       },
       {
         role: 'assistant',
@@ -35,10 +41,20 @@ export function loadSessions() {
       return [first]
     }
     
-    const normalized = sessions.map(item => ({
-      pinned: false,
-      ...item,
-    }))
+    const normalized = sessions.map(item => {
+      const mode = item.mode || 'companion'
+      const persona = PERSONA_MAP[mode] || PERSONA_MAP.companion
+
+      return {
+        mode,
+        customPrompt:
+          item.customPrompt ||
+          item.messages?.find(m => m.role === 'system')?.content ||
+          persona.systemPrompt,
+        pinned: false,
+        ...item,
+      }
+    })
     return sortSessions(normalized)
   } catch (e) {
     const first = createSession()

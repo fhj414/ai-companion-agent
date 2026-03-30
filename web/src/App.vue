@@ -8,24 +8,34 @@
         :editing-title="editingTitle"
         :session-keyword="sessionKeyword"
         :format-time="formatTime"
+        :persona-map="PERSONA_MAP"
+        :persona-options="PERSONA_OPTIONS"
+        :create-mode="createMode"
         @create="handleCreateSession"
         @switch="handleSwitchSession"
         @start-rename="handleStartRename"
         @rename="handleRenameSession"
         @toggle-pin="handleTogglePinSession"
         @delete="handleDeleteSession"
+        @change-mode="handleChangeSessionMode"
         @update:editing-title="editingTitle = $event"
         @update:session-keyword="sessionKeyword = $event"
+        @update:create-mode="createMode = $event"
       />
 
       <ChatPanel
         :current-messages="currentMessages"
         :loading="loading"
         :input-value="inputValue"
+        :prompt-draft="promptDraft"
         @update:input-value="inputValue = $event"
+        @update:prompt-draft="promptDraft = $event"
         @send="sendMessage"
         @abort="abortController?.abort()"
         @export="exportCurrentSession"
+        @save-prompt="handleSavePrompt"
+        @reset-prompt="handleResetPrompt"
+        @use-prompt-template="handleUsePromptTemplate"
       />
 
       <MemoryPanel :memory-list="memoryList" />
@@ -37,6 +47,7 @@
 import axios from 'axios'
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { createSession, loadSessions, saveSessions, sortSessions } from './utils/session'
+import { PERSONA_MAP, PERSONA_OPTIONS } from './utils/persona'
 import SessionSidebar from './components/SessionSidebar.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import MemoryPanel from './components/MemoryPanel.vue'
@@ -51,12 +62,18 @@ const memoryList = ref([])
 const editingSessionId = ref('')
 const editingTitle = ref('')
 const sessionKeyword = ref('')
+const createMode = ref('companion')
+const promptDraft = ref('')
 
 const currentSession = computed(() => {
   return sessions.value.find(item => item.id === currentSessionId.value) || sessions.value[0]
 })
 
 const currentMessages = computed(() => currentSession.value?.messages || [])
+
+const currentSystemPrompt = computed(() => {
+  return currentSession.value?.customPrompt || ''
+})
 
 const filteredSessions = computed(() => {
   const keyword = sessionKeyword.value.trim().toLowerCase()
@@ -99,9 +116,92 @@ const updateCurrentSession = updater => {
 }
 
 const handleCreateSession = () => {
-  const session = createSession(`新对话 ${sessions.value.length + 1}`)
+  const session = createSession(`新对话 ${sessions.value.length + 1}`, createMode.value)
   sessions.value = sortSessions([session, ...sessions.value])
   currentSessionId.value = session.id
+}
+
+const resetSystemMessageByMode = (messages = [], mode = 'companion', prompt) => {
+  const persona = PERSONA_MAP[mode] || PERSONA_MAP.companion
+  const finalPrompt = prompt || persona.systemPrompt
+  const nextMessages = [...messages]
+
+  const systemIndex = nextMessages.findIndex(item => item.role === 'system')
+  if (systemIndex > -1) {
+    nextMessages[systemIndex] = {
+      ...nextMessages[systemIndex],
+      content: finalPrompt,
+    }
+  } else {
+    nextMessages.unshift({
+      role: 'system',
+      content: finalPrompt,
+    })
+  }
+
+  return nextMessages
+}
+
+const handleChangeSessionMode = (id, mode) => {
+  const persona = PERSONA_MAP[mode] || PERSONA_MAP.companion
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === id
+        ? {
+            ...item,
+            mode,
+            customPrompt: persona.systemPrompt,
+            updatedAt: Date.now(),
+            messages: resetSystemMessageByMode(item.messages, mode, persona.systemPrompt),
+          }
+        : item
+    )
+  )
+}
+
+const handleSavePrompt = () => {
+  if (!currentSession.value) return
+
+  const nextPrompt = promptDraft.value.trim()
+  if (!nextPrompt) return
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === currentSessionId.value
+        ? {
+            ...item,
+            customPrompt: nextPrompt,
+            updatedAt: Date.now(),
+            messages: resetSystemMessageByMode(item.messages, item.mode, nextPrompt),
+          }
+        : item
+    )
+  )
+}
+
+const handleResetPrompt = () => {
+  if (!currentSession.value) return
+
+  const persona = PERSONA_MAP[currentSession.value.mode] || PERSONA_MAP.companion
+  promptDraft.value = persona.systemPrompt
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === currentSessionId.value
+        ? {
+            ...item,
+            customPrompt: persona.systemPrompt,
+            updatedAt: Date.now(),
+            messages: resetSystemMessageByMode(item.messages, item.mode, persona.systemPrompt),
+          }
+        : item
+    )
+  )
+}
+
+const handleUsePromptTemplate = template => {
+  promptDraft.value = template
 }
 
 const handleSwitchSession = id => {
@@ -412,6 +512,14 @@ const sendMessageStream = async messages => {
 watch(currentSessionId, () => {
   fetchMemories()
 })
+
+watch(
+  currentSystemPrompt,
+  newVal => {
+    promptDraft.value = newVal || ''
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   fetchMemories()

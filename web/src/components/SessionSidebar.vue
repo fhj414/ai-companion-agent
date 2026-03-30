@@ -5,6 +5,12 @@
       <button class="new-btn" @click="emit('create')">+ 新建</button>
     </div>
 
+    <select :value="createMode" class="mode-select" @change="handleCreateModeChange">
+      <option v-for="item in personaOptions" :key="item.value" :value="item.value">
+        {{ item.label }}
+      </option>
+    </select>
+
     <input
       :value="sessionKeyword"
       class="session-search"
@@ -45,6 +51,23 @@
             <span class="action-btn delete" @click.stop="emit('delete', item.id)">删除</span>
           </div>
         </div>
+        <div class="session-meta">
+          <span class="mode-badge">
+            {{ personaMap[item.mode]?.label || '陪伴模式' }}
+          </span>
+
+          <select
+            class="session-mode-select"
+            :value="item.mode"
+            @click.stop
+            @change.stop="emit('change-mode', item.id, $event.target.value)"
+          >
+            <option v-for="option in personaOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+
         <div class="session-time">{{ formatTime(item.updatedAt) }}</div>
       </div>
     </div>
@@ -77,6 +100,18 @@ defineProps({
     type: Function,
     required: true,
   },
+  personaMap: {
+    type: Object,
+    required: true,
+  },
+  personaOptions: {
+    type: Array,
+    required: true,
+  },
+  createMode: {
+    type: String,
+    required: true,
+  },
 })
 
 const emit = defineEmits([
@@ -86,6 +121,8 @@ const emit = defineEmits([
   'rename',
   'toggle-pin',
   'delete',
+  'change-mode',
+  'update:createMode',
   'update:editingTitle',
   'update:sessionKeyword',
 ])
@@ -96,6 +133,10 @@ const handleEditingTitleInput = event => {
 
 const handleKeywordInput = event => {
   emit('update:sessionKeyword', event.target.value)
+}
+
+const handleCreateModeChange = event => {
+  emit('update:createMode', event.target.value)
 }
 </script>
 
@@ -143,6 +184,18 @@ const handleKeywordInput = event => {
   font-size: 14px;
   outline: none;
   margin-bottom: 12px;
+}
+
+.mode-select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 12px;
+  background: #fff;
 }
 
 .session-list {
@@ -229,6 +282,36 @@ const handleKeywordInput = event => {
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
+}
+
+.session-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+.session-mode-select {
+  max-width: 110px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #fff;
+  color: #374151;
+  outline: none;
 }
 
 .session-time {
