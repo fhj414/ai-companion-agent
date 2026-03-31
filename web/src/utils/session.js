@@ -1,4 +1,5 @@
 import { PERSONA_MAP } from './persona'
+import { MODEL_OPTIONS } from './models'
 
 export const STORAGE_KEY = 'ai-companion-sessions'
 
@@ -10,6 +11,7 @@ export function createSession(title = '新对话', mode = 'companion') {
     title,
     mode,
     customPrompt: persona.systemPrompt,
+    model: MODEL_OPTIONS[0].value,
     temperature: 0.7,
     topP: 1,
     maxTokens: 1200,
@@ -55,6 +57,7 @@ export function loadSessions() {
           item.customPrompt ||
           item.messages?.find(m => m.role === 'system')?.content ||
           persona.systemPrompt,
+        model: MODEL_OPTIONS[0].value,
         temperature: 0.7,
         topP: 1,
         maxTokens: 1200,

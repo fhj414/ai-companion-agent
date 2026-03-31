@@ -67,6 +67,26 @@
 
       <div class="params-grid">
         <div class="param-item">
+          <label class="param-label">model</label>
+
+          <select
+            :value="modelDraft"
+            class="param-input"
+            @change="emit('update:modelDraft', $event.target.value)"
+          >
+            <option v-for="item in modelOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </option>
+          </select>
+
+          <div class="memory-switch-row">
+            <button class="prompt-btn small" @click="emit('save-model-setting')">保存模型设置</button>
+          </div>
+
+          <div class="param-tip">不同会话可绑定不同模型提供方</div>
+        </div>
+
+        <div class="param-item">
           <label class="param-label">temperature</label>
           <input
             :value="temperatureDraft"
@@ -196,6 +216,14 @@ const props = defineProps({
     type: Boolean,
     required: true,
   },
+  modelOptions: {
+    type: Array,
+    required: true,
+  },
+  modelDraft: {
+    type: String,
+    required: true,
+  },
   quotedMessage: {
     type: Object,
     default: null,
@@ -235,8 +263,10 @@ const emit = defineEmits([
   'update:topPDraft',
   'update:maxTokensDraft',
   'update:memoryEnabledDraft',
+  'update:modelDraft',
   'save-params',
   'save-memory-setting',
+  'save-model-setting',
 ])
 </script>
 

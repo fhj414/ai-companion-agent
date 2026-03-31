@@ -7,10 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from openai import OpenAI
-
-from typing import List, Literal, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import HTTPException
+from llm_clients import create_client_by_model
 from memory_store import (
     get_session_memories,
     add_session_memories,
@@ -30,12 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI(
-    api_key=os.getenv("MOONSHOT_API_KEY"),
-    base_url=os.getenv("MOONSHOT_BASE_URL", "https://api.moonshot.cn/v1"),
-)
-
-MODEL_NAME = os.getenv("MOONSHOT_MODEL", "kimi-k2-0905-preview")
+DEFAULT_MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "moonshot/kimi-k2-0905-preview")
 
 
 class Message(BaseModel):
@@ -46,6 +39,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[Message]
     session_id: Optional[str] = None
+    model: Optional[str] = None
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1
     max_tokens: Optional[int] = 1200
@@ -71,7 +65,7 @@ def build_memory_prompt(memories: List[str]) -> str:
 """
 
 
-def extract_user_memories(user_text: str) -> List[str]:
+def extract_user_memories(user_text: str, model_name: Optional[str] = None) -> List[str]:
     text = (user_text or "").strip()
     if not text:
         return []
@@ -92,8 +86,10 @@ def extract_user_memories(user_text: str) -> List[str]:
 """
 
     try:
+        client, config = create_client_by_model(model_name or DEFAULT_MODEL_NAME)
+
         completion = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=config["model"],
             messages=[
                 {"role": "system", "content": "你是一个严谨的用户事实提取助手。"},
                 {"role": "user", "content": prompt},
@@ -103,14 +99,18 @@ def extract_user_memories(user_text: str) -> List[str]:
         content = completion.choices[0].message.content or "[]"
         print("memory extract raw content:", content)
 
-        import json
         result = json.loads(content)
 
         if isinstance(result, list):
-            parsed = [str(item).strip() for item in result if
-                      str(item).strip()]
-            print("memory extract parsed:", parsed)
-            return parsed
+            parsed = [str(item).strip() for item in result if str(item).strip()]
+            if parsed:
+                print("memory extract parsed:", parsed)
+                return parsed
+
+        fallback_keywords = ["我是", "我在", "我最近", "我想", "我希望", "我主要", "我平时", "我的目标"]
+        if any(keyword in text for keyword in fallback_keywords):
+            print("memory extract fallback:", [text])
+            return [text]
 
         print("memory extract parsed: []")
         return []
@@ -151,8 +151,10 @@ def chat(req: ChatRequest):
     print("session_memories:", session_memories)
 
     try:
+        client, config = create_client_by_model(req.model or DEFAULT_MODEL_NAME)
+
         completion = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=config["model"],
             messages=final_messages,
             temperature=req.temperature or 0.7,
             top_p=req.top_p or 1,
@@ -174,7 +176,7 @@ def chat(req: ChatRequest):
         print("latest_user_text:", latest_user_text)
 
         if latest_user_text:
-            new_memories = extract_user_memories(latest_user_text)
+            new_memories = extract_user_memories(latest_user_text, req.model or DEFAULT_MODEL_NAME)
             print("new_memories:", new_memories)
             add_session_memories(req.session_id, new_memories)
 
@@ -195,8 +197,10 @@ def chat_stream(req: ChatRequest):
         full_reply = ""
 
         try:
+            client, config = create_client_by_model(req.model or DEFAULT_MODEL_NAME)
+
             stream = client.chat.completions.create(
-                model=MODEL_NAME,
+                model=config["model"],
                 messages=final_messages,
                 temperature=req.temperature or 0.7,
                 top_p=req.top_p or 1,
@@ -226,7 +230,7 @@ def chat_stream(req: ChatRequest):
             print("stream latest_user_text:", latest_user_text)
 
             if latest_user_text:
-                new_memories = extract_user_memories(latest_user_text)
+                new_memories = extract_user_memories(latest_user_text, req.model or DEFAULT_MODEL_NAME)
                 print("stream new_memories:", new_memories)
                 add_session_memories(req.session_id, new_memories)
 

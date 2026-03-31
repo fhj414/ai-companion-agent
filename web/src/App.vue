@@ -32,6 +32,8 @@
         :top-p-draft="topPDraft"
         :max-tokens-draft="maxTokensDraft"
         :memory-enabled-draft="memoryEnabledDraft"
+        :model-options="MODEL_OPTIONS"
+        :model-draft="modelDraft"
         :quoted-message="quotedMessage"
         :on-copy-message="copyMessage"
         :on-delete-message="handleDeleteMessage"
@@ -44,6 +46,7 @@
         @update:top-p-draft="topPDraft = $event"
         @update:max-tokens-draft="maxTokensDraft = $event"
         @update:memory-enabled-draft="memoryEnabledDraft = $event"
+        @update:model-draft="modelDraft = $event"
         @send="sendMessage"
         @abort="abortController?.abort()"
         @export="exportCurrentSession"
@@ -52,6 +55,7 @@
         @use-prompt-template="handleUsePromptTemplate"
         @save-params="handleSaveParams"
         @save-memory-setting="handleSaveMemorySetting"
+        @save-model-setting="handleSaveModelSetting"
       />
 
       <MemoryPanel
@@ -76,6 +80,7 @@ import axios from 'axios'
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { createSession, loadSessions, saveSessions, sortSessions } from './utils/session'
 import { PERSONA_MAP, PERSONA_OPTIONS } from './utils/persona'
+import { MODEL_OPTIONS } from './utils/models'
 import SessionSidebar from './components/SessionSidebar.vue'
 import ChatPanel from './components/ChatPanel.vue'
 import MemoryPanel from './components/MemoryPanel.vue'
@@ -100,6 +105,7 @@ const memoryDraft = ref('')
 const editingMemoryIndex = ref(-1)
 const editingMemoryValue = ref('')
 const memoryEnabledDraft = ref(true)
+const modelDraft = ref(MODEL_OPTIONS[0].value)
 
 const currentSession = computed(() => {
   return sessions.value.find(item => item.id === currentSessionId.value) || sessions.value[0]
@@ -121,6 +127,10 @@ const currentParams = computed(() => {
 
 const currentMemoryEnabled = computed(() => {
   return currentSession.value?.memoryEnabled ?? true
+})
+
+const currentModel = computed(() => {
+  return currentSession.value?.model || MODEL_OPTIONS[0].value
 })
 
 const filteredSessions = computed(() => {
@@ -283,6 +293,22 @@ const handleSaveMemorySetting = () => {
         ? {
             ...item,
             memoryEnabled: !!memoryEnabledDraft.value,
+            updatedAt: Date.now(),
+          }
+        : item
+    )
+  )
+}
+
+const handleSaveModelSetting = () => {
+  if (!currentSession.value) return
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === currentSessionId.value
+        ? {
+            ...item,
+            model: modelDraft.value || MODEL_OPTIONS[0].value,
             updatedAt: Date.now(),
           }
         : item
@@ -700,6 +726,7 @@ const sendMessageStream = async messages => {
     body: JSON.stringify({
       messages: cleanedMessages,
       session_id: currentSession.value.id,
+      model: currentSession.value.model,
       temperature: currentSession.value.temperature,
       top_p: currentSession.value.topP,
       max_tokens: currentSession.value.maxTokens,
@@ -824,6 +851,14 @@ watch(
   currentMemoryEnabled,
   newVal => {
     memoryEnabledDraft.value = !!newVal
+  },
+  { immediate: true }
+)
+
+watch(
+  currentModel,
+  newVal => {
+    modelDraft.value = newVal || MODEL_OPTIONS[0].value
   },
   { immediate: true }
 )
