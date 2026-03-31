@@ -13,6 +13,7 @@ export function createSession(title = '新对话', mode = 'companion') {
     temperature: 0.7,
     topP: 1,
     maxTokens: 1200,
+    memoryEnabled: true,
     pinned: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -57,6 +58,7 @@ export function loadSessions() {
         temperature: 0.7,
         topP: 1,
         maxTokens: 1200,
+        memoryEnabled: true,
         pinned: false,
         ...item,
       }

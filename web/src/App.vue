@@ -31,6 +31,7 @@
         :temperature-draft="temperatureDraft"
         :top-p-draft="topPDraft"
         :max-tokens-draft="maxTokensDraft"
+        :memory-enabled-draft="memoryEnabledDraft"
         :quoted-message="quotedMessage"
         :on-copy-message="copyMessage"
         :on-delete-message="handleDeleteMessage"
@@ -42,6 +43,7 @@
         @update:temperature-draft="temperatureDraft = $event"
         @update:top-p-draft="topPDraft = $event"
         @update:max-tokens-draft="maxTokensDraft = $event"
+        @update:memory-enabled-draft="memoryEnabledDraft = $event"
         @send="sendMessage"
         @abort="abortController?.abort()"
         @export="exportCurrentSession"
@@ -49,6 +51,7 @@
         @reset-prompt="handleResetPrompt"
         @use-prompt-template="handleUsePromptTemplate"
         @save-params="handleSaveParams"
+        @save-memory-setting="handleSaveMemorySetting"
       />
 
       <MemoryPanel
@@ -96,6 +99,7 @@ const quotedMessage = ref(null)
 const memoryDraft = ref('')
 const editingMemoryIndex = ref(-1)
 const editingMemoryValue = ref('')
+const memoryEnabledDraft = ref(true)
 
 const currentSession = computed(() => {
   return sessions.value.find(item => item.id === currentSessionId.value) || sessions.value[0]
@@ -113,6 +117,10 @@ const currentParams = computed(() => {
     topP: currentSession.value?.topP ?? 1,
     maxTokens: currentSession.value?.maxTokens ?? 1200,
   }
+})
+
+const currentMemoryEnabled = computed(() => {
+  return currentSession.value?.memoryEnabled ?? true
 })
 
 const filteredSessions = computed(() => {
@@ -259,6 +267,22 @@ const handleSaveParams = () => {
             temperature: nextTemperature,
             topP: nextTopP,
             maxTokens: nextMaxTokens,
+            updatedAt: Date.now(),
+          }
+        : item
+    )
+  )
+}
+
+const handleSaveMemorySetting = () => {
+  if (!currentSession.value) return
+
+  sessions.value = sortSessions(
+    sessions.value.map(item =>
+      item.id === currentSessionId.value
+        ? {
+            ...item,
+            memoryEnabled: !!memoryEnabledDraft.value,
             updatedAt: Date.now(),
           }
         : item
@@ -679,6 +703,7 @@ const sendMessageStream = async messages => {
       temperature: currentSession.value.temperature,
       top_p: currentSession.value.topP,
       max_tokens: currentSession.value.maxTokens,
+      memory_enabled: currentSession.value.memoryEnabled,
     }),
     signal: abortController.value.signal,
   })
@@ -793,6 +818,14 @@ watch(
     maxTokensDraft.value = newVal.maxTokens
   },
   { immediate: true, deep: true }
+)
+
+watch(
+  currentMemoryEnabled,
+  newVal => {
+    memoryEnabledDraft.value = !!newVal
+  },
+  { immediate: true }
 )
 
 onMounted(() => {

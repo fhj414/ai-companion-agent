@@ -49,6 +49,7 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1
     max_tokens: Optional[int] = 1200
+    memory_enabled: Optional[bool] = True
 
 
 class ChatResponse(BaseModel):
@@ -117,9 +118,9 @@ def extract_user_memories(user_text: str) -> List[str]:
         print("extract_user_memories error:", e)
         return []
 
-def build_final_messages(messages: List[dict], session_id: str = ""):
-    session_memories = get_session_memories(session_id or "")
-    memory_prompt = build_memory_prompt(session_memories)
+def build_final_messages(messages: List[dict], session_id: str = "", memory_enabled: bool = True):
+    session_memories = get_session_memories(session_id or "") if memory_enabled else []
+    memory_prompt = build_memory_prompt(session_memories) if memory_enabled else ""
 
     final_messages = []
     for item in messages:
@@ -141,7 +142,11 @@ def health():
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     messages = [m.model_dump() for m in req.messages]
-    final_messages, session_memories = build_final_messages(messages, req.session_id or "")
+    final_messages, session_memories = build_final_messages(
+        messages,
+        req.session_id or "",
+        req.memory_enabled if req.memory_enabled is not None else True,
+    )
 
     print("session_memories:", session_memories)
 
@@ -178,7 +183,11 @@ def chat(req: ChatRequest):
 @app.post("/api/chat/stream")
 def chat_stream(req: ChatRequest):
     messages = [m.model_dump() for m in req.messages]
-    final_messages, session_memories = build_final_messages(messages, req.session_id or "")
+    final_messages, session_memories = build_final_messages(
+        messages,
+        req.session_id or "",
+        req.memory_enabled if req.memory_enabled is not None else True,
+    )
 
     print("stream session_memories:", session_memories)
 

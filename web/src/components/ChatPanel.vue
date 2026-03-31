@@ -107,6 +107,25 @@
           />
           <div class="param-tip">限制单次最大输出长度</div>
         </div>
+
+        <div class="param-item">
+          <label class="param-label">memory</label>
+
+          <div class="memory-switch-row">
+            <label class="memory-switch-label">
+              <input
+                :checked="memoryEnabledDraft"
+                type="checkbox"
+                @change="emit('update:memoryEnabledDraft', $event.target.checked)"
+              />
+              <span>{{ memoryEnabledDraft ? '开启记忆注入' : '关闭记忆注入' }}</span>
+            </label>
+
+            <button class="prompt-btn small" @click="emit('save-memory-setting')">保存记忆设置</button>
+          </div>
+
+          <div class="param-tip">关闭后会保留记忆数据，但不会注入到对话上下文</div>
+        </div>
       </div>
     </div>
 
@@ -173,6 +192,10 @@ const props = defineProps({
     type: [Number, String],
     required: true,
   },
+  memoryEnabledDraft: {
+    type: Boolean,
+    required: true,
+  },
   quotedMessage: {
     type: Object,
     default: null,
@@ -211,7 +234,9 @@ const emit = defineEmits([
   'update:temperatureDraft',
   'update:topPDraft',
   'update:maxTokensDraft',
+  'update:memoryEnabledDraft',
   'save-params',
+  'save-memory-setting',
 ])
 </script>
 
@@ -381,6 +406,26 @@ const emit = defineEmits([
   margin-top: 8px;
   font-size: 12px;
   color: #6b7280;
+}
+
+.memory-switch-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.memory-switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.prompt-btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .quote-bar {
